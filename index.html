@@ -24,90 +24,39 @@
       max-width: 420px;
       box-shadow: 0 10px 25px rgba(0,0,0,0.3);
     }
-    h1 {
-      font-size: 1.5rem;
-      margin: 0 0 8px;
-      text-align: center;
-    }
-    .subtitle {
-      text-align: center;
-      color: #94a3b8;
-      font-size: 0.9rem;
-      margin-bottom: 24px;
-    }
+    h1 { font-size: 1.5rem; margin: 0 0 8px; text-align: center; }
+    .subtitle { text-align: center; color: #94a3b8; font-size: 0.9rem; margin-bottom: 24px; }
     .btn {
-      display: block;
-      width: 100%;
-      padding: 16px;
-      border: none;
-      border-radius: 12px;
-      font-size: 1.1rem;
-      font-weight: 700;
-      cursor: pointer;
-      margin-bottom: 12px;
-      transition: 0.2s;
+      display: block; width: 100%; padding: 16px; border: none; border-radius: 12px;
+      font-size: 1.1rem; font-weight: 700; cursor: pointer; margin-bottom: 12px;
     }
-    .btn-record {
-      background: #2563eb;
-      color: white;
-    }
-    .btn-record:active { background: #1d4ed8; }
-    .btn-stop {
-      background: #dc2626;
-      color: white;
-      display: none;
-    }
-    .btn-stop:active { background: #b91c1c; }
-    .status {
-      text-align: center;
-      margin: 16px 0;
-      font-size: 0.95rem;
-      color: #94a3b8;
-      min-height: 24px;
-    }
-    .recording .status {
-      color: #f87171;
-      font-weight: 600;
-    }
+    .btn-record { background: #2563eb; color: white; }
+    .btn-stop { background: #dc2626; color: white; display: none; }
+    .status { text-align: center; margin: 16px 0; font-size: 0.95rem; color: #94a3b8; min-height: 24px; }
+    .recording .status { color: #f87171; font-weight: 600; }
     #result {
-      background: #0f172a;
-      border-radius: 12px;
-      padding: 16px;
-      margin-top: 16px;
-      white-space: pre-wrap;
-      font-size: 0.95rem;
-      line-height: 1.5;
-      max-height: 300px;
-      overflow-y: auto;
-      display: none;
+      background: #0f172a; border-radius: 12px; padding: 16px; margin-top: 16px;
+      white-space: pre-wrap; font-size: 0.95rem; line-height: 1.5;
+      max-height: 300px; overflow-y: auto; display: none;
     }
-    .timer {
-      font-size: 1.8rem;
-      font-weight: 700;
-      text-align: center;
-      margin: 12px 0;
-      font-variant-numeric: tabular-nums;
-    }
+    .timer { font-size: 1.8rem; font-weight: 700; text-align: center; margin: 12px 0; }
   </style>
 </head>
 <body>
   <div class="card">
     <h1>AI Note Taker</h1>
     <div class="subtitle">Tap Record → Speak → Stop → Get transcript</div>
-
     <div class="timer" id="timer">00:00</div>
     <div class="status" id="status">Ready to record</div>
-
     <button class="btn btn-record" id="recordBtn" onclick="startRecording()">🎤 Start Recording</button>
     <button class="btn btn-stop" id="stopBtn" onclick="stopRecording()">⏹ Stop Recording</button>
-
     <div id="result"></div>
   </div>
 
   <script>
-    // ========== PASTE YOUR GEMINI API KEY HERE ==========
+    // ========== YOUR API KEY ==========
     const GEMINI_API_KEY = "AQ.Ab8RN6JzC3iRRrLtfASLR0HkAekp2vYj6OgEWniC7GMrqUFIUg";
-    // ====================================================
+    // ==================================
 
     let mediaRecorder;
     let audioChunks = [];
@@ -119,14 +68,11 @@
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         mediaRecorder = new MediaRecorder(stream);
         audioChunks = [];
-
         mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
         mediaRecorder.onstop = processAudio;
-
         mediaRecorder.start();
         startTime = Date.now();
         timerInterval = setInterval(updateTimer, 200);
-
         document.getElementById("recordBtn").style.display = "none";
         document.getElementById("stopBtn").style.display = "block";
         document.getElementById("status").textContent = "Recording... Speak now";
@@ -134,14 +80,14 @@
         document.getElementById("result").style.display = "none";
       } catch (err) {
         document.getElementById("status").textContent = "Microphone error: " + err.message;
-        alert("Cannot access microphone.\n\nPlease allow microphone permission and try again.");
+        alert("Cannot access microphone. Please allow permission.");
       }
     }
 
     function stopRecording() {
       if (mediaRecorder && mediaRecorder.state === "recording") {
         mediaRecorder.stop();
-        mediaRecorder.stream.getTracks().forEach(track => track.stop());
+        mediaRecorder.stream.getTracks().forEach(t => t.stop());
       }
       clearInterval(timerInterval);
       document.getElementById("recordBtn").style.display = "block";
@@ -151,9 +97,9 @@
     }
 
     function updateTimer() {
-      const seconds = Math.floor((Date.now() - startTime) / 1000);
-      const m = String(Math.floor(seconds / 60)).padStart(2, "0");
-      const s = String(seconds % 60).padStart(2, "0");
+      const sec = Math.floor((Date.now() - startTime) / 1000);
+      const m = String(Math.floor(sec / 60)).padStart(2, "0");
+      const s = String(sec % 60).padStart(2, "0");
       document.getElementById("timer").textContent = `${m}:${s}`;
     }
 
@@ -166,14 +112,17 @@
 
         try {
           const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
             {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
+              headers: {
+                "Content-Type": "application/json",
+                "x-goog-api-key": GEMINI_API_KEY
+              },
               body: JSON.stringify({
                 contents: [{
                   parts: [
-                    { text: "Please transcribe this audio recording accurately. Only return the transcription text, nothing else." },
+                    { text: "Transcribe this audio accurately. Return only the transcription text." },
                     {
                       inline_data: {
                         mime_type: "audio/webm",
@@ -187,19 +136,21 @@
           );
 
           const data = await response.json();
+          console.log(data); // for debugging
 
-          if (data.candidates && data.candidates[0].content.parts[0].text) {
+          if (data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
             const transcript = data.candidates[0].content.parts[0].text;
             document.getElementById("result").style.display = "block";
             document.getElementById("result").textContent = transcript;
             document.getElementById("status").textContent = "Done!";
           } else {
-            throw new Error(data.error?.message || "No transcription returned");
+            const errMsg = data.error?.message || JSON.stringify(data);
+            throw new Error(errMsg);
           }
         } catch (err) {
-          document.getElementById("status").textContent = "Error: " + err.message;
+          document.getElementById("status").textContent = "Error occurred";
           document.getElementById("result").style.display = "block";
-          document.getElementById("result").textContent = "Failed to process audio.\n" + err.message;
+          document.getElementById("result").textContent = "Failed:\n" + err.message;
         }
       };
     }
