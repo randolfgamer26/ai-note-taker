@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>AI Note Taker - Recorder</title>
+  <title>AI Note Taker</title>
   <style>
     * { box-sizing: border-box; }
     body {
@@ -23,174 +23,138 @@
       border-radius: 20px;
       padding: 28px 24px;
       width: 100%;
-      max-width: 400px;
+      max-width: 420px;
       box-shadow: 0 15px 35px rgba(0,0,0,0.4);
       text-align: center;
     }
-    h1 {
-      font-size: 1.6rem;
-      margin: 0 0 6px;
-      font-weight: 800;
-    }
-    .subtitle {
-      color: #94a3b8;
-      font-size: 0.95rem;
-      margin-bottom: 28px;
-    }
-    .timer {
-      font-size: 3rem;
-      font-weight: 800;
-      font-variant-numeric: tabular-nums;
-      margin: 10px 0 20px;
-      letter-spacing: 2px;
-    }
-    .status {
-      font-size: 1rem;
-      color: #94a3b8;
-      margin-bottom: 24px;
-      min-height: 24px;
-    }
-    .recording .status {
-      color: #f87171;
-      font-weight: 700;
-    }
+    h1 { font-size: 1.5rem; margin: 0 0 6px; font-weight: 800; }
+    .subtitle { color: #94a3b8; font-size: 0.95rem; margin-bottom: 24px; }
+    .timer { font-size: 2.8rem; font-weight: 800; margin: 10px 0 16px; font-variant-numeric: tabular-nums; }
+    .status { font-size: 1rem; color: #94a3b8; margin-bottom: 20px; min-height: 24px; }
+    .recording .status { color: #f87171; font-weight: 700; }
     .btn {
-      display: block;
-      width: 100%;
-      padding: 18px;
-      border: none;
-      border-radius: 14px;
-      font-size: 1.15rem;
-      font-weight: 700;
-      cursor: pointer;
-      margin-bottom: 12px;
-      transition: transform 0.15s;
+      display: block; width: 100%; padding: 16px; border: none; border-radius: 14px;
+      font-size: 1.1rem; font-weight: 700; cursor: pointer; margin-bottom: 12px;
     }
-    .btn:active { transform: scale(0.97); }
-    .btn-record {
-      background: #2563eb;
-      color: white;
-    }
-    .btn-stop {
-      background: #dc2626;
-      color: white;
-      display: none;
-    }
-    .btn-download {
-      background: #059669;
-      color: white;
-      display: none;
+    .btn-record { background: #2563eb; color: white; }
+    .btn-stop { background: #dc2626; color: white; display: none; }
+    .btn-open { background: #059669; color: white; display: none; text-decoration: none; }
+    #transcriptBox {
+      background: #0f172a; border-radius: 12px; padding: 16px; margin-top: 16px;
+      text-align: left; white-space: pre-wrap; font-size: 0.95rem; line-height: 1.5;
+      max-height: 260px; overflow-y: auto; display: none;
     }
     .pulse {
-      display: inline-block;
-      width: 12px;
-      height: 12px;
-      background: #f87171;
-      border-radius: 50%;
-      margin-right: 8px;
-      animation: pulse 1s infinite;
+      display: inline-block; width: 10px; height: 10px; background: #f87171;
+      border-radius: 50%; margin-right: 8px; animation: pulse 1s infinite;
     }
-    @keyframes pulse {
-      0% { opacity: 1; }
-      50% { opacity: 0.3; }
-      100% { opacity: 1; }
-    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
   </style>
 </head>
 <body>
   <div class="card">
     <h1>AI Note Taker</h1>
-    <div class="subtitle">Record your voice note</div>
+    <div class="subtitle">Record → Stop → Auto Transcript + Save to Drive</div>
 
     <div class="timer" id="timer">00:00</div>
     <div class="status" id="status">Ready to record</div>
 
-    <button class="btn btn-record" id="recordBtn" onclick="startRecording()">
-      🎤 Start Recording
-    </button>
+    <button class="btn btn-record" id="recordBtn" onclick="startRecording()">🎤 Start Recording</button>
+    <button class="btn btn-stop" id="stopBtn" onclick="stopRecording()">⏹ Stop Recording</button>
+    <a class="btn btn-open" id="openDocBtn" href="#" target="_blank">📄 Open Google Doc</a>
 
-    <button class="btn btn-stop" id="stopBtn" onclick="stopRecording()">
-      ⏹ Stop Recording
-    </button>
-
-    <button class="btn btn-download" id="downloadBtn" onclick="downloadAudio()">
-      ⬇️ Download Recording
-    </button>
+    <div id="transcriptBox"></div>
   </div>
 
   <script>
-    let mediaRecorder;
-    let audioChunks = [];
-    let audioBlob = null;
-    let startTime;
-    let timerInterval;
+    // ========== YOUR EMS WEB APP URL ==========
+    const EMS_URL = "https://script.google.com/macros/s/AKfycbyLibEpHkypng2g-YbCFoqPfTsLKXBj6yDM8hjY1BfObqjwSql6fiJGtB24pZilo0-E/exec";
+    // ==========================================
+
+    let mediaRecorder, audioChunks = [], startTime, timerInterval;
 
     async function startRecording() {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ 
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true
-          } 
-        });
-
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         mediaRecorder = new MediaRecorder(stream);
         audioChunks = [];
 
-        mediaRecorder.ondataavailable = (e) => {
-          if (e.data.size > 0) audioChunks.push(e.data);
-        };
-
-        mediaRecorder.onstop = () => {
-          audioBlob = new Blob(audioChunks, { type: "audio/webm" });
-          document.getElementById("downloadBtn").style.display = "block";
-          document.getElementById("status").textContent = "Recording finished! You can download it.";
-        };
+        mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
+        mediaRecorder.onstop = sendToEMS;
 
         mediaRecorder.start();
         startTime = Date.now();
         timerInterval = setInterval(updateTimer, 200);
 
-        // UI changes
         document.getElementById("recordBtn").style.display = "none";
         document.getElementById("stopBtn").style.display = "block";
-        document.getElementById("downloadBtn").style.display = "none";
-        document.getElementById("status").innerHTML = '<span class="pulse"></span> Recording... Speak now';
+        document.getElementById("openDocBtn").style.display = "none";
+        document.getElementById("transcriptBox").style.display = "none";
+        document.getElementById("status").innerHTML = '<span class="pulse"></span> Recording...';
         document.body.classList.add("recording");
-
       } catch (err) {
-        document.getElementById("status").textContent = "Error: " + err.message;
-        alert("Cannot access microphone.\n\nPlease allow microphone permission and try again.");
+        document.getElementById("status").textContent = "Microphone error: " + err.message;
+        alert("Please allow microphone permission.");
       }
     }
 
     function stopRecording() {
       if (mediaRecorder && mediaRecorder.state === "recording") {
         mediaRecorder.stop();
-        mediaRecorder.stream.getTracks().forEach(track => track.stop());
+        mediaRecorder.stream.getTracks().forEach(t => t.stop());
       }
       clearInterval(timerInterval);
-
       document.getElementById("recordBtn").style.display = "block";
       document.getElementById("stopBtn").style.display = "none";
+      document.getElementById("status").textContent = "Uploading & Transcribing... Please wait";
       document.body.classList.remove("recording");
     }
 
     function updateTimer() {
-      const totalSeconds = Math.floor((Date.now() - startTime) / 1000);
-      const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, "0");
-      const seconds = String(totalSeconds % 60).padStart(2, "0");
-      document.getElementById("timer").textContent = `${minutes}:${seconds}`;
+      const sec = Math.floor((Date.now() - startTime) / 1000);
+      const m = String(Math.floor(sec / 60)).padStart(2, "0");
+      const s = String(sec % 60).padStart(2, "0");
+      document.getElementById("timer").textContent = `${m}:${s}`;
     }
 
-    function downloadAudio() {
-      if (!audioBlob) return;
-      const url = URL.createObjectURL(audioBlob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "AI-Note-" + new Date().toISOString().slice(0,19).replace(/:/g,"-") + ".webm";
-      a.click();
-      URL.revokeObjectURL(url);
+    async function sendToEMS() {
+      const blob = new Blob(audioChunks, { type: "audio/webm" });
+      const reader = new FileReader();
+      reader.readAsDataURL(blob);
+
+      reader.onloadend = async () => {
+        const base64Audio = reader.result.split(",")[1];
+
+        try {
+          const response = await fetch(EMS_URL, {
+            method: "POST",
+            body: JSON.stringify({
+              action: "aiNoteTaker",
+              audio: base64Audio,
+              mimeType: "audio/webm"
+            })
+          });
+
+          const result = await response.json();
+
+          if (result.success) {
+            document.getElementById("status").textContent = "Done!";
+            document.getElementById("transcriptBox").style.display = "block";
+            document.getElementById("transcriptBox").textContent = result.transcript;
+
+            if (result.docUrl) {
+              document.getElementById("openDocBtn").style.display = "block";
+              document.getElementById("openDocBtn").href = result.docUrl;
+            }
+          } else {
+            throw new Error(result.message || "Unknown error");
+          }
+        } catch (err) {
+          document.getElementById("status").textContent = "Error occurred";
+          document.getElementById("transcriptBox").style.display = "block";
+          document.getElementById("transcriptBox").textContent = "Failed: " + err.message;
+        }
+      };
     }
   </script>
 </body>
